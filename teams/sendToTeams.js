@@ -5,23 +5,6 @@ const {
 } = require('@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials');
 const { ClientSecretCredential } = require('@azure/identity');
 
-const createChannel = async (client) => {
-  const options = {
-    displayName: 'Architecture Discussion',
-    description:
-      'This channel is where we debate all future architecture plans',
-    membershipType: 'standard',
-  };
-
-  return client
-    .api(`/teams/${process.env.TEAMS_ID_GROUP}/channels`)
-    .post(options);
-};
-
-const getListChannel = async (client) => {
-  return client.api(`/teams/${process.env.TEAMS_ID_GROUP}/channels`).get();
-};
-
 // SEND A MESSAGE TO THE TEAMS
 module.exports = (
   message,

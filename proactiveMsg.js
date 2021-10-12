@@ -81,7 +81,7 @@ async function sendToChannel() {
     isGroup: true,
     conversationType: 'channel',
     channelData: {
-      channel: { id: '19:test@thread.tacv2' },
+      channel: { id: '19:ab9dc276db5e455d95094387005e35c0@thread.tacv2' },
     },
     activity: { type: 'message', attachments: card },
   });

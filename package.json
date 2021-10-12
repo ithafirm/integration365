@@ -16,6 +16,7 @@
     "botframework-connector": "^4.14.1",
     "dotenv": "^10.0.0",
     "isomorphic-fetch": "^3.0.0",
+    "node-fetch": "^3.0.0",
     "restify": "^8.6.0"
   }
 }
