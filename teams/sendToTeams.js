@@ -1,29 +1,15 @@
 require('isomorphic-fetch');
+const fs = require('fs');
 const { Client } = require('@microsoft/microsoft-graph-client');
 const {
   TokenCredentialAuthenticationProvider,
 } = require('@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials');
 const { ClientSecretCredential } = require('@azure/identity');
-
-const createChannel = async (client) => {
-  const options = {
-    displayName: 'Architecture Discussion',
-    description:
-      'This channel is where we debate all future architecture plans',
-    membershipType: 'standard',
-  };
-
-  return client
-    .api(`/teams/${process.env.TEAMS_ID_GROUP}/channels`)
-    .post(options);
-};
-
-const getListChannel = async (client) => {
-  return client.api(`/teams/${process.env.TEAMS_ID_GROUP}/channels`).get();
-};
+const api = require('./api');
 
 // SEND A MESSAGE TO THE TEAMS
-module.exports = (
+module.exports = async (
+  timeMessage,
   message,
   title,
   avatarUrl,
@@ -47,5 +33,56 @@ module.exports = (
     authProvider,
   });
 
-  const listOfChannels = getListChannel(client);
+  const { value } = await api.getListChannels(client);
+  let channelOfTeams = value.find((e) => e.displayName === title);
+
+  if (!channelOfTeams) {
+    channelOfTeams = await api.createChannel(client, title);
+  }
+
+  const { access_token, refresh_token } = JSON.parse(
+    fs.readFileSync(`${__dirname.replace(/\\teams/, '')}\\access_token.json`, {
+      encoding: 'utf-8',
+    }),
+  );
+
+  const resultSendMessage = await api.sendMessage(
+    timeMessage,
+    access_token,
+    channelOfTeams.id,
+    displayName,
+    message,
+    avatarUrl,
+    urlAttachments
+  );
+
+  if (resultSendMessage.error?.code === 'InvalidAuthenticationToken') {
+    const refresh = await api.refreshAuthCode(
+      process.env.AZURE_APP_ID,
+      refresh_token,
+      process.env.AZURE_APP_SECRET,
+      process.env.TEAMS_SCOPE_USER,
+    );
+
+    if (refresh.error) {
+      throw new Error('error refresh token');
+    }
+
+    fs.writeFileSync(
+      `${__dirname.replace(/\\teams/, '')}\\access_token.json`,
+      JSON.stringify({
+        access_token: refresh.access_token,
+        refresh_token: refresh.refresh_token,
+      }),
+    );
+    await api.sendMessage(
+      timeMessage,
+      refresh.access_token,
+      channelOfTeams.id,
+      displayName,
+      message,
+      avatarUrl,
+      urlAttachments
+    );
+  }
 };

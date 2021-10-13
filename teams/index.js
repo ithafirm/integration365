@@ -9,6 +9,7 @@ async function sendTimelineMessage(roomId, client) {
     if (t.event.type === 'm.room.message') {
       const user = client.getUser(t.event.sender);
       await sendToTeams(
+        t.event.getDate().toUTCString(),
         t.event.content.body,
         room.name,
         user.avatarUrl,
@@ -56,6 +57,7 @@ module.exports = async (client) => {
     const room = client.getRoom(event.event.room_id);
 
     sendToTeams(
+      event.getDate().toUTCString(),
       event.event.content.body,
       room.name,
       user.avatarUrl,
