@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node client.js"
   },
   "author": "",
   "license": "ISC",
@@ -16,7 +16,8 @@
     "botframework-connector": "^4.14.1",
     "dotenv": "^10.0.0",
     "isomorphic-fetch": "^3.0.0",
-    "node-fetch": "^3.0.0",
+    "matrix-js-sdk": "^14.0.0",
+    "node-fetch": "^2.6.5",
     "restify": "^8.6.0"
   }
 }
