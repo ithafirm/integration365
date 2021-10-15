@@ -85,7 +85,6 @@ async function sendToChannel() {
     },
     activity: { type: 'message', attachments: card },
   });
-  console.log();
 }
 
 sendToChannel();

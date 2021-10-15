@@ -8,15 +8,7 @@ async function sendTimelineMessage(roomId, client) {
     const t = room.timeline[i];
     if (t.event.type === 'm.room.message') {
       const user = client.getUser(t.event.sender);
-      await sendToTeams(
-        t.event.getDate().toUTCString(),
-        t.event.content.body,
-        room.name,
-        user.avatarUrl,
-        user.displayName,
-        t.event.room_id,
-        t.event.content.url,
-      );
+      await sendToTeams(event, room.name, user);
     }
   }
 }
@@ -56,14 +48,6 @@ module.exports = async (client) => {
 
     const room = client.getRoom(event.event.room_id);
 
-    sendToTeams(
-      event.getDate().toUTCString(),
-      event.event.content.body,
-      room.name,
-      user.avatarUrl,
-      user.displayName,
-      event.event.room_id,
-      event.event.content.url,
-    );
+    sendToTeams(event, room.name, user);
   });
 };
