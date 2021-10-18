@@ -6,7 +6,6 @@ const adapter = new botbuilder.BotFrameworkAdapter({
   appId: process.env.AZURE_APP_ID,
   appPassword: process.env.AZURE_APP_SECRET,
 });
-
 // Create HTTP server.
 let server = restify.createServer();
 server.listen(3978, function () {

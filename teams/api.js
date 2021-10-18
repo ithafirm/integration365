@@ -25,7 +25,7 @@ exports.refreshAuthCode = async (refresh_token) => {
       client_id: process.env.AZURE_APP_ID,
       grant_type: 'refresh_token',
       client_secret: process.env.AZURE_APP_SECRET,
-      scope: process.env.TEAMS_SCOPE_USER,
+      scope: process.env.TEAMS_SCOPE_USER.replace(/,/g, ' '),
       redirect_uri: process.env.TEAMS_REDIRECT_URI,
     }),
     method: 'POST',

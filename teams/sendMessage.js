@@ -1,7 +1,14 @@
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 const createMessage = (event, user) => {
-  const defaultAvatar = process.env.TEAMS_DEFAULT_AVATAR_BOT;
+  let avatarUrl = process.env.TEAMS_DEFAULT_AVATAR_BOT;
+  if (user.avatarUrl) {
+    avatarUrl = user.avatarUrl.replace(
+      /mxc:\/\//,
+      'https://chat.itha.ru/_matrix/media/r0/download/',
+    );
+  }
   let fullDownloadLink;
   if (event.event.content.url) {
     fullDownloadLink = `https://chat.itha.ru/_matrix/media/r0/download/`;
@@ -21,7 +28,7 @@ const createMessage = (event, user) => {
               {
                 type: 'Image',
                 style: 'Person',
-                url: user.avatarUrl || defaultAvatar,
+                url: avatarUrl,
                 size: 'Small',
               },
             ],
@@ -64,20 +71,23 @@ const createMessage = (event, user) => {
 
 const sendMessage = (event, access_token, channelOfTeams, user, file) => {
   const bearer = `Bearer ${access_token}`;
-  const msgUrl = `/teams/${process.env.TEAMS_ID_GROUP}/channels/${channelOfTeams}/messages`;
+  const msgUrl = `/chats/${channelOfTeams}/messages`;
   let body;
-
+  const uuid = crypto.randomUUID();
   if (file) {
     body = {
       body: {
         contentType: 'html',
-        content: `Пользователь "<b>${user.displayName}</b>" отправил файл. <attachment id="153fa47d-18c9-4179-be08-9879815a9f90"></attachment>`,
+        content: `Пользователь "<b>${user.displayName}</b>" отправил файл. <attachment id="${uuid}"></attachment>`,
       },
       attachments: [
         {
-          id: '153fa47d-18c9-4179-be08-9879815a9f90',
+          id: uuid,
           contentType: 'reference',
-          contentUrl: file.webUrl,
+          contentUrl: file.webUrl.replace(
+            '&action=default&mobileredirect=true',
+            '',
+          ),
           name: file.name,
         },
       ],
@@ -86,11 +96,11 @@ const sendMessage = (event, access_token, channelOfTeams, user, file) => {
     body = {
       body: {
         contentType: 'html',
-        content: "<attachment id='04b151bb-2f88-4f5b-9615-30b2a59d9adf'>",
+        content: `<attachment id='${uuid}'>`,
       },
       attachments: [
         {
-          id: '04b151bb-2f88-4f5b-9615-30b2a59d9adf',
+          id: uuid,
           contentType: 'application/vnd.microsoft.card.adaptive',
           content: JSON.stringify(createMessage(event, user, file)),
         },
@@ -105,7 +115,8 @@ const sendMessage = (event, access_token, channelOfTeams, user, file) => {
   })
     .then((res) => res.json())
     .then((json) => {
-      if (json.error) throw new Error(json.error.code);
+      if (json.error)
+        throw new Error(json.error.code + `\n${json.error.message}`);
       return json;
     });
 };
@@ -145,7 +156,7 @@ const uploadLargeFile = async (
   fileName,
   fileArray,
 ) => {
-  let { uploadUrl } = await openSession(access_token, fileName, FolderName);
+  const { uploadUrl } = await openSession(access_token, fileName, FolderName);
 
   let start = 0;
   let end = 4194304;
@@ -176,7 +187,7 @@ const uploadLittleFile = async (access_token, FolderName, fileName, file) => {
   return fetch(`https://graph.microsoft.com/v1.0${msgUrl}`, {
     headers: { Authorization: bearer },
     body: file,
-    method: 'put',
+    method: 'PUT',
   }).then((res) => res.json());
 };
 
@@ -188,19 +199,31 @@ module.exports = async (
   FolderName,
 ) => {
   const { msgtype } = event.event.content;
-  if (msgtype === 'm.text' || msgtype === 'm.image') {
+  //  картинки и обычный текст отправляются почти одинаково с помощью adaptive card
+  //  m.notice это технический тип riot чтобы сообщать о сбоях
+  const simpleSend = ['m.text', 'm.image', 'm.notice'];
+  if (simpleSend.includes(msgtype)) {
     return sendMessage(event, access_token, channelOfTeams, user);
   }
-
-  let url = `${process.env.MATRIX_LINK_ADRESS}/_matrix/media/r0/download`;
-  url += event.event.content.url.replace('mxc:/', '');
-  const file = await fetch(url).then((res) => res.buffer());
-
-  const fileName = event.event.content.body.replace(
+  //  вся логика ниже должна срабатывать только если есть прикреплённый файл
+  let url, file;
+  if (event.event.content.url) {
+    url = `${process.env.MATRIX_LINK_ADRESS}/_matrix/media/r0/download`;
+    url += event.event.content.url.replace('mxc:/', '');
+    file = await fetch(url).then((res) => res.buffer());
+  }
+  //  уникализируем имя файла, прикрепляя временнУю метку
+  //  это сделано чтобы в sharepoint не было перезаписи файлов с одинаковым названием.
+  let fileName = event.event.content.body.replace(
     /(.+)(\..+)/,
     `$1-${+new Date()}$2`,
   );
-
+  //  если прилетел файл без расширения, то берём тип файла из mimetype
+  if (!/\./.test(event.event.content.body)) {
+    fileName = event.event.content.info.mimetype.split(';')[0].split('/');
+    fileName = `${fileName[0]}-${+new Date()}.${fileName[1]}`;
+  }
+  //  файлы меньше и больше 4мб отправляются разными способами в microsoft graph
   let uploadFile;
   if (file.byteLength < 4194304) {
     uploadFile = await uploadLittleFile(
@@ -217,5 +240,6 @@ module.exports = async (
       file,
     );
   }
+
   return sendMessage(event, access_token, channelOfTeams, user, uploadFile);
 };
