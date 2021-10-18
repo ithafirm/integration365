@@ -11,7 +11,7 @@ module.exports = async function sendToTeams(event, titleTask, user) {
   );
   try {
     const channels = await api.getListChannels(access_token);
-    let chatOfTeams = channels.value.find((chat) => chat.topic === titleTask);
+    let chatOfTeams = channels.value.find((chat) => chat.displayName === titleTask);
 
     if (!chatOfTeams) {
       chatOfTeams = await api.createChannel(access_token, titleTask);

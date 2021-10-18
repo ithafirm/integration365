@@ -32,14 +32,14 @@ exports.refreshAuthCode = async (refresh_token) => {
   }).then(async (res) => res.json());
 };
 
-exports.createChannel = (access_token, topic) => {
+exports.createChannel = (access_token, displayName) => {
   const auth = `Bearer ${access_token}`;
-  const url = `https://graph.microsoft.com/v1.0/chats`;
+  const url = `https://graph.microsoft.com/v1.0/teams/${process.env.TEAMS_ID_GROUP_ELEMENT}/channels`;
   return fetch(url, {
     headers: { Authorization: auth, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      topic,
-      chatType: 'group',
+      displayName,
+      membershipType: 'private',
       members: [
         {
           '@odata.type': '#microsoft.graph.aadUserConversationMember',
@@ -64,7 +64,7 @@ exports.createChannel = (access_token, topic) => {
 
 exports.getListChannels = (access_token) => {
   const auth = `Bearer ${access_token}`;
-  const url = `https://graph.microsoft.com/v1.0/users/${process.env.TEAMS_ID_USER_DELEGATE}/chats`;
+  const url = `https://graph.microsoft.com/v1.0/teams/${process.env.TEAMS_ID_GROUP_ELEMENT}/channels`;
   return fetch(url, {
     headers: { Authorization: auth },
   })
