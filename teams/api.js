@@ -1,5 +1,4 @@
 const fetch = require('node-fetch');
-const fs = require('fs');
 
 exports.getMarker = (client_id, code, client_secret, scope) => {
   const url = `https://login.microsoftonline.com/common/oauth2/v2.0/token`;
@@ -73,8 +72,4 @@ exports.getListChannels = (access_token) => {
       if (json.error) throw new Error(json.error.code);
       return json;
     });
-};
-
-exports.getListUsersTeam = async (client) => {
-  return client.api(`/teams/${process.env.TEAMS_ID_GROUP}/members`).get();
 };
