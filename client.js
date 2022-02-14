@@ -5,6 +5,7 @@ const morgan = require('morgan');
 
 const listenRouter = require('./routes/listen');
 const teams = require('./teams');
+const app = express();
 
 const client = sdk.createClient({
   baseUrl: process.env.MATRIX_LINK_ADRESS,
@@ -18,8 +19,6 @@ client.once('sync', async function (state) {
   if (state === 'PREPARED') teams(client);
   else process.exit(1);
 });
-
-const app = express();
 
 app.use(morgan('dev'));
 app.use(express.json());

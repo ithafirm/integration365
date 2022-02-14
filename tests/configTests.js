@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 const assert = require('assert');
-require('dotenv').config();
+require('dotenv').config({ path: '../config.env' });
 
 describe('TEAMS config', function () {
   it('should have a valid client ID', function () {
