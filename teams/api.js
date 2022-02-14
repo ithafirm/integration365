@@ -1,5 +1,4 @@
 const fetch = require('node-fetch');
-const fs = require('fs');
 
 exports.getMarker = (client_id, code, client_secret, scope) => {
   const url = `https://login.microsoftonline.com/common/oauth2/v2.0/token`;
@@ -16,208 +15,61 @@ exports.getMarker = (client_id, code, client_secret, scope) => {
   }).then((res) => res.json());
 };
 
-exports.refreshAuthCode = async (
-  client_id,
-  refresh_token,
-  client_secret,
-  scope,
-) => {
+exports.refreshAuthCode = async (refresh_token) => {
   const url = `https://login.microsoftonline.com/common/oauth2/v2.0/token`;
   return fetch(url, {
     headers: { 'Content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      client_id,
-      scope,
       refresh_token,
+      client_id: process.env.AZURE_APP_ID,
       grant_type: 'refresh_token',
-      client_secret,
+      client_secret: process.env.AZURE_APP_SECRET,
+      scope: process.env.TEAMS_SCOPE_USER.replace(/,/g, ' '),
+      redirect_uri: process.env.TEAMS_REDIRECT_URI,
     }),
     method: 'POST',
   }).then(async (res) => res.json());
 };
 
-const createMessage = (timestamp, autor, textMessage, urlAvatar, imageUrl) => {
-  return {
-    type: 'AdaptiveCard',
-    body: [
-      {
-        type: 'ColumnSet',
-        columns: [
-          {
-            type: 'Column',
-            width: 'auto',
-            items: [
-              {
-                type: 'Image',
-                style: 'Person',
-                url: urlAvatar,
-                size: 'Small',
-              },
-            ],
-          },
-          {
-            type: 'Column',
-            items: [
-              {
-                type: 'TextBlock',
-                weight: 'Bolder',
-                text: autor,
-                wrap: true,
-              },
-              {
-                type: 'TextBlock',
-                spacing: 'None',
-                text: `Created ${timestamp}`,
-                isSubtle: true,
-                wrap: true,
-              },
-            ],
-            width: 'stretch',
-          },
-        ],
-      },
-      {
-        type: 'TextBlock',
-        text: textMessage,
-        wrap: true,
-      },
-      {
-        type: 'Image',
-        url: imageUrl,
-      },
-    ],
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    version: '1.2',
-  };
-};
-
-const createMessageWithImage = (timestamp, autor, textMessage, urlAvatar) => {
-  return {
-    type: 'AdaptiveCard',
-    body: [
-      {
-        type: 'ColumnSet',
-        columns: [
-          {
-            type: 'Column',
-            width: 'auto',
-            items: [
-              {
-                type: 'Image',
-                style: 'Person',
-                url: 'https://pbs.twimg.com/profile_images/3647943215/d7f12830b3c17a5a9e4afcc370e3a37e_400x400.jpeg',
-                size: 'Small',
-              },
-            ],
-          },
-          {
-            type: 'Column',
-            items: [
-              {
-                type: 'TextBlock',
-                weight: 'Bolder',
-                text: 'Matt Hidinger',
-                wrap: true,
-              },
-              {
-                type: 'TextBlock',
-                spacing: 'None',
-                text: 'Created {{DATE(2017-02-14T06:08:39Z,SHORT)}}',
-                isSubtle: true,
-                wrap: true,
-              },
-            ],
-            width: 'stretch',
-          },
-        ],
-      },
-      {
-        type: 'Image',
-        url: imageUrl,
-      },
-    ],
-    $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-    version: '1.2',
-  };
-};
-
-exports.sendMessage = (
-  timestamp,
-  access_token,
-  channelOfTeams,
-  displayName,
-  message,
-  avatarUrl,
-  urlAttachments,
-) => {
-  const bearer = `Bearer ${access_token}`;
-  const msgUrl = `/teams/${process.env.TEAMS_ID_GROUP}/channels/${channelOfTeams}/messages`;
-  const defaultAvatar = process.env.TEAMS_DEFAULT_AVATAR_BOT;
-  let fullDownloadLink;
-  if (urlAttachments) {
-    fullDownloadLink = `https://chat.itha.ru/_matrix/media/r0/download/`;
-    fullDownloadLink += urlAttachments.replace('mxc://', '');
-  }
-  const attachment = createMessage(
-    timestamp,
-    displayName,
-    message,
-    avatarUrl || defaultAvatar,
-    fullDownloadLink,
-  );
-  return fetch(`https://graph.microsoft.com/v1.0${msgUrl}`, {
-    headers: { Authorization: bearer, 'Content-type': 'application/json' },
+exports.createChannel = (access_token, displayName) => {
+  const auth = `Bearer ${access_token}`;
+  const url = `https://graph.microsoft.com/v1.0/teams/${process.env.TEAMS_ID_GROUP_ELEMENT}/channels`;
+  return fetch(url, {
+    headers: { Authorization: auth, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      body: {
-        contentType: 'html',
-        content: "<attachment id='04b151bb-2f88-4f5b-9615-30b2a59d9adf'>",
-      },
-      attachments: [
+      displayName,
+      membershipType: 'private',
+      members: [
         {
-          id: '04b151bb-2f88-4f5b-9615-30b2a59d9adf',
-          contentType: 'application/vnd.microsoft.card.adaptive',
-          content: JSON.stringify(attachment),
+          '@odata.type': '#microsoft.graph.aadUserConversationMember',
+          'user@odata.bind': `https://graph.microsoft.com/v1.0/users(\'${process.env.TEAMS_ID_USER_DELEGATE}\')`,
+          roles: ['owner'],
+        },
+        {
+          '@odata.type': '#microsoft.graph.aadUserConversationMember',
+          'user@odata.bind': `https://graph.microsoft.com/v1.0/users(\'${process.env.TEAMS_ID_USER_ADMIN}\')`,
+          roles: ['owner'],
         },
       ],
     }),
     method: 'POST',
-  }).then((res) => res.json());
+  })
+    .then((res) => res.json())
+    .then((json) => {
+      if (json.error) throw new Error(json.error.code);
+      return json;
+    });
 };
 
-exports.get = (access_token, link) => {
+exports.getListChannels = (access_token) => {
   const auth = `Bearer ${access_token}`;
-  return fetch(`https://graph.microsoft.com/v1.0${link}`, {
+  const url = `https://graph.microsoft.com/v1.0/teams/${process.env.TEAMS_ID_GROUP_ELEMENT}/channels`;
+  return fetch(url, {
     headers: { Authorization: auth },
-  }).then((res) => res.json());
-};
-
-exports.createChannel = async (client, nameOfChannel) => {
-  const options = {
-    displayName: nameOfChannel,
-    membershipType: 'private',
-    members: [
-      {
-        '@odata.type': '#microsoft.graph.aadUserConversationMember',
-        'user@odata.bind': `https://graph.microsoft.com/v1.0/users(\'${process.env.TEAMS_ID_USER_DELEGATE}\')`,
-        roles: ['owner'],
-      },
-      {
-        '@odata.type': '#microsoft.graph.aadUserConversationMember',
-        'user@odata.bind': `https://graph.microsoft.com/v1.0/users(\'${process.env.TEAMS_ID_USER_ADMIN}\')`,
-        roles: ['owner'],
-      },
-    ],
-  };
-
-  return client
-    .api(`/teams/${process.env.TEAMS_ID_GROUP}/channels`)
-    .post(options);
-};
-
-exports.getListChannels = async (client) => {
-  return client.api(`/teams/${process.env.TEAMS_ID_GROUP}/channels`).get();
-};
-
-exports.getListUsersTeam = async (client) => {
-  return client.api(`/teams/${process.env.TEAMS_ID_GROUP}/members`).get();
+  })
+    .then((res) => res.json())
+    .then((json) => {
+      if (json.error) throw new Error(json.error.code);
+      return json;
+    });
 };
