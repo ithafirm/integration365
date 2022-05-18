@@ -24,8 +24,9 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+//  work checkß
 app.get('/', (req, res) => {
-  res.send('<h1>Hello World</h1>').status(200);
+  res.send('<h1>It's work'</h1>').status(200);
 });
 
 app.use('/listen', (req, res) => {
