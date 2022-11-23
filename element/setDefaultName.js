@@ -1,3 +1,4 @@
+// TODO Change url from settings
 const fetch = require('node-fetch');
 
 module.exports = () => {
