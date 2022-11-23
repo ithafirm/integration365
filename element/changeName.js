@@ -1,3 +1,4 @@
+// TODO - нужно будет заменить url из настроек
 const fetch = require('node-fetch');
 
 module.exports = (displayname) => {
